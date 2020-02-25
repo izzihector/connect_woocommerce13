@@ -1,0 +1,8 @@
+[submodule "server-tools"]
+	path = server-tools
+	url = git@github.com:Vauxoo/server-tools.git
+	branch = 13.0
+[submodule "pegasus"]
+	path = pegasus
+	url = git@git.vauxoo.com:vauxoo/pegasus.git
+	branch = 13.0
