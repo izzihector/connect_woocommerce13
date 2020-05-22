@@ -64,6 +64,16 @@
                            statusbar_visible="draft,done"/>
                     <field name="is_process_queue" invisible="1"/>
                 </header>
+                <div class="alert alert-danger" role="alert" style="margin-bottom:0px;"
+                     attrs="{'invisible': ['|',('is_action_require','=',False),('state','=','done')]}">
+                    <strong>
+                        - Need to process this queue manually.
+                        There are 3 attempts been made by automated action to process this queue,
+                        but due to some reason it couldn't process it.
+                        <br/>
+                        - Ignore, if this queue is already processed.
+                    </strong>
+                </div>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button class="oe_stat_button" type="object"
@@ -151,6 +161,9 @@
                 <field name="instance_id"/>
                 <field name="create_date"/>
                 <field name="state"/>
+                <field name="is_action_require" invisible="1"/>
+                <button string="Need manual interaction" icon="fa-exclamation-triangle text-danger"
+                        attrs="{'invisible': ['|',('is_action_require','=',False),('state','=','done')]}"/>
                 <field name="is_process_queue" invisible="1"/>
                 <field name="running_status"
                        attrs="{'invisible':[('is_process_queue', '=', False)]}"/>

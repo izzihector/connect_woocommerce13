@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Odoo WooCommerce Connector',
-    'version': '13.0.18',
+    'version': '13.0.22',
     'license': 'OPL-1',
     'category': 'Sale',
     'summary': 'Odoo Woocommerce Connector helps you automate your vital business processes at Odoo by enabling '

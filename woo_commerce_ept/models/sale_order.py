@@ -204,7 +204,7 @@ class SaleOrder(models.Model):
                             e))
 
         if response.status_code != 200:
-            log_line = self.create_woo_log_lines(str(response.status_code) + " || " + response.json().get("message",response.reason))
+            log_line = self.create_woo_log_lines(str(response.status_code) + " || " + response.json().get("message", response.reason))
             self.env["common.log.book.ept"].create({"woo_instance_id":woo_instance.id,
                                                     "type":"import",
                                                     "module":"woocommerce_ept",
@@ -299,7 +299,7 @@ class SaleOrder(models.Model):
                                                           "woo_instance_id":instance.id})
         return payment_gateway
 
-    def create_woo_log_lines(self, message, common_log_book_id = False, queue_line=False):
+    def create_woo_log_lines(self, message, common_log_book_id=False, queue_line=False):
         """
         Creates log line for the failed queue line.
         @author: Maulik Barad on Date 09-Nov-2019.
@@ -632,6 +632,22 @@ class SaleOrder(models.Model):
         return taxes
 
     @api.model
+    def verify_order_for_payment_method(self, woo_instance, order_data):
+        """
+        Check order for full discount, when there is no payment gateway found.
+        @author: Maulik Barad on Date 21-May-2020.
+        """
+        total_discount = 0
+
+        total = order_data.get("total")
+        if order_data.get("coupon_lines"):
+            total_discount = order_data.get("discount_total")
+
+        if float(total) == 0 and float(total_discount) > 0:
+            return True
+        return False
+
+    @api.model
     def create_woo_orders_wc_v1_v2_v3(self, queue_lines, common_log_book_id):
         """
         Create orders from the order queue lines.
@@ -683,13 +699,24 @@ class SaleOrder(models.Model):
             else:
                 financial_status = "not_paid"
 
-            payment_gateway = self.create_or_update_payment_gateway(woo_instance, order_data)
             workflow_config = False
+            no_payment_gateway = False
+
+            payment_gateway = self.create_or_update_payment_gateway(woo_instance, order_data)
+            no_payment_gateway = self.verify_order_for_payment_method(woo_instance, order_data)
+
             if payment_gateway:
                 workflow_config = sale_auto_workflow_obj.search(
                         [("woo_instance_id", "=", woo_instance.id),
                          ("woo_financial_status", "=", financial_status),
                          ("woo_payment_gateway_id", "=", payment_gateway.id)], limit=1)
+            elif no_payment_gateway:
+                payment_gateway = self.env['woo.payment.gateway'].search([
+                    ("code", "=", "no_payment_method"), ("woo_instance_id", "=", woo_instance.id)])
+                workflow_config = sale_auto_workflow_obj.search(
+                    [("woo_instance_id", "=", woo_instance.id),
+                     ("woo_financial_status", "=", financial_status),
+                     ("woo_payment_gateway_id", "=", payment_gateway.id)], limit=1)
             else:
                 message = """- System could not find the payment gateway response from WooCommerce store.\n- The response received from Woocommerce store was - Empty."""
                 self.create_woo_log_lines(message, common_log_book_id, queue_line)
@@ -731,6 +758,9 @@ class SaleOrder(models.Model):
                                                                   parent_id=parent_id,
                                                                   type="delivery",
                                                                   instance=woo_instance) if order_data.get("shipping", False) else partner
+
+            if not shipping_partner:
+                shipping_partner = partner
 
             order_vals = self.prepare_woo_order_vals(order_data, woo_instance, partner,
                                                      shipping_partner, workflow, payment_gateway)
@@ -792,23 +822,6 @@ class SaleOrder(models.Model):
                                                sale_order, total_shipping, taxes,
                                                tax_included, woo_instance, True)
                     _logger.info("Shipping line is created.")
-
-            # if tax_included:
-            #     total_discount = float(order_data.get("discount_total", 0.0)) + float(
-            #             order_data.get("discount_tax", 0.0))
-            # else:
-            #     total_discount = float(order_data.get("discount_total", 0.0))
-            # if total_discount:
-            #     taxes = []
-            #     if woo_taxes:
-            #         line_taxes = order_data.get("tax_lines")
-            #         for tax in line_taxes:
-            #             taxes.append(woo_taxes[tax["rate_id"]])
-            #
-            #     self.create_woo_order_line(False, woo_instance.discount_product_id, 1,
-            #                                sale_order, total_discount * -1, taxes, tax_included,
-            #                                woo_instance)
-            #     _logger.info("Discount line is created.")
 
             for fee_line in order_data.get("fee_lines"):
                 if tax_included:

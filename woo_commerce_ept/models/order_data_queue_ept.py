@@ -2,7 +2,6 @@
 For woo_commerce_ept module.
 """
 from odoo import models, fields, api
-import datetime
 
 
 class WooOrderDataQueueEpt(models.Model):
@@ -32,13 +31,12 @@ class WooOrderDataQueueEpt(models.Model):
     cancelled_line_count = fields.Integer(compute="_compute_lines", help="Counts cancelled queue lines.")
     created_by = fields.Selection([("import", "By Import Process"), ("webhook", "By Webhook")],
                                   help="Identify the process that generated a queue.", default="import")
-    is_process_queue = fields.Boolean('Is Processing Queue',default = False)
-    running_status = fields.Char(default = "Running...")
+    is_process_queue = fields.Boolean('Is Processing Queue', default=False)
+    running_status = fields.Char(default="Running...")
     queue_process_count = fields.Integer(string="Queue Process Times",
                                          help="it is used know queue how many time processed")
     is_action_require = fields.Boolean(default=False,
                                        help="it is used to find the action require queue")
-
 
     @api.depends("order_data_queue_line_ids.state")
     def _compute_lines(self):

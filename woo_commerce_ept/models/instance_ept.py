@@ -152,9 +152,9 @@ class woo_instance_ept(models.Model):
                                        default=_get_default_warehouse, required=True)
     woo_visible = fields.Boolean("Visible on the product page?", default=True,
                                  help="""Attribute is visible on the product page""")
-    woo_attribute_type = fields.Selection([('select', 'Select'), ('text', 'Text')],
-                                          string='Attribute Type',
-                                          default='text')
+    woo_attribute_type = fields.Selection([("select", "Select"), ("text", "Text")],
+                                          string="Attribute Type",
+                                          default="select")
     woo_auto_active_currency = fields.Boolean("Auto Active Currency", default=True,
                                               help="Automatically changes currency state to active if it is inactive.")
     woo_currency_id = fields.Many2one("res.currency", string="Currency",
@@ -519,10 +519,21 @@ class woo_instance_ept(models.Model):
         if r.status_code != 200:
             raise Warning(_("%s\n%s" % (r.status_code, r.reason)))
         else:
-            self.write({'state': 'confirmed'})
+            """
+            When there is case of full discount, customer do not need to pay or select any payment
+            method for that order.
+            So, creating this type of payment method for applying the auto workflow and picking
+            policy in order.
+            """
+            no_payment_method = self.env['woo.payment.gateway'].search([
+                ("code", "=", "no_payment_method"), ("woo_instance_id", "=", self.id)])
+            if not no_payment_method:
+                self.env['woo.payment.gateway'].create({"name":"No Payment Method",
+                                                        "code":"no_payment_method",
+                                                        "woo_instance_id":self.id})
             self.woo_create_financial_status('paid')
             self.woo_create_financial_status('not_paid')
-            self._cr.commit()
+            self.write({'state': 'confirmed'})
         return True
 
     def woo_create_financial_status(self, financial_status):

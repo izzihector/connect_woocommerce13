@@ -312,24 +312,43 @@
                                     <div class="o_setting_right_pane">
                                         <label for="woo_auto_import_product"/>
                                         <div class="text-muted">
-                                            - This option creates a new product in your catalog
-                                            if
-                                            system couldn't find the product based on SKU /
-                                            Internal
-                                            Reference / Default Product Code.
+                                            - This option creates a new product in your Odoo catalog
+                                            if system couldn't find the product based on SKU /
+                                            Internal Reference / Default Product Code.
                                             <br/>
                                             - If you are selling on multiple sales channels and
-                                            having
-                                            different SKU / Internal Reference / Default Product
-                                            Code on
-                                            each sales channel, it may lead to creation of
-                                            duplicate
-                                            products in your product catalogue in your database.
+                                            having different SKU / Internal Reference / Default
+                                            Product Code on each sales channel, it may lead to
+                                            creation of duplicate products in your product catalogue
+                                            in your database.
                                             <br/>
                                             - So we request you to enable this option, as per
-                                            your
-                                            product
-                                            catalogue configuration.
+                                            your product catalogue configuration.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-lg-6 o_setting_box">
+                                    <div class="o_setting_right_pane">
+                                        <label for="woo_attribute_type"/>
+                                        <div class="text-muted">
+                                            Select Attribute type for exporting attributes while
+                                            exporting/updating products from Odoo to WooCommerce.
+                                            <br/>
+                                            1) Select : It will create attribute at Global level at
+                                            WooCommerce Store, which will be accessible across all
+                                            products.
+                                            <br/>
+                                            2) Text : It will add attribute in particular product.
+                                            So, the attribute and its values will be exclusively
+                                            available for that individual product and will not be
+                                            shared with any other product.
+                                        </div>
+                                        <div class="content-group">
+                                            <div class="mt16">
+                                                <field name="woo_attribute_type"
+                                                       attrs="{'required':[('woo_instance_id','!=',False)]}"/>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -587,7 +606,7 @@
                             </div>
                         </div>
                     </div>
-                    <div name="stock_information_header"
+                    <div name="schedule_activity_header"
                          attrs="{'invisible': [('woo_instance_id', '=', False)]}">
                         <h2 style="font-size:25px;background-color:#e9ecef;">Schedule Activity
                             Configuration

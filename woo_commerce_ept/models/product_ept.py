@@ -1043,7 +1043,7 @@ class WooProductTemplateEpt(models.Model):
 
         return results
 
-    def get_products_from_woo_v1_v2_v3(self, instance, common_log_id, template_id=False):
+    def get_products_from_woo_v1_v2_v3(self, instance, common_log_id, template_id=False, import_all=False):
         """
         :param woo_instance: It contain the browsable object of class woo_instance_ept
         :param woo_comman_log_id: It is the browsable object of common log book
@@ -1086,7 +1086,7 @@ class WooProductTemplateEpt(models.Model):
         if instance.woo_version == 'wc/v2' or instance.woo_version == 'wc/v3':
             available_queue = False
             product_data_queue_line_ids = False
-            if not template_id:
+            if not template_id and not import_all:
                 product_data_queues = self.env['woo.product.data.queue.ept'].search(
                     [('woo_instance_id', '=', instance.id)])
                 if product_data_queues:
@@ -1250,62 +1250,33 @@ class WooProductTemplateEpt(models.Model):
         for variation_attribute in variation_attributes:
             attribute_val = variation_attribute.get('option')
             attribute_name = variation_attribute.get('name')
-            if woo_instance.woo_attribute_type == 'text':
-                for attribute in template_attributes:
-                    if attribute.get('variation') and attribute.get('name'):
-                        if attribute.get('name').replace(" ", "-").lower() == attribute_name:
-                            attribute_name = attribute.get('name')
-                            break
-                product_attribute = self.env["product.attribute"].get_attribute(attribute_name,
-                                                                                type="radio",
-                                                                                create_variant="always",
-                                                                                auto_create=True)
-                if product_attribute:
-                    product_attribute_value = self.env[
-                        "product.attribute.value"].get_attribute_values(attribute_val,
-                                                                        product_attribute.id,
-                                                                        auto_create=True)
-                    if product_attribute_value:
-                        template_attribute_value_id = self.env[
-                            'product.template.attribute.value'].search(
-                            [('product_attribute_value_id', '=', product_attribute_value.id),
-                             ('attribute_id', '=', product_attribute.id),
-                             ('product_tmpl_id', '=', product_template.id)], limit=1)
-                        if template_attribute_value_id:
-                            domain = ('product_template_attribute_value_ids', '=',
-                                      template_attribute_value_id.id)
-                            template_attribute_value_domain.append(domain)
-                        else:
-                            return []
+            for attribute in template_attributes:
+                if attribute.get('variation') and attribute.get('name'):
+                    if attribute.get('name').replace(" ", "-").lower() == attribute_name:
+                        attribute_name = attribute.get('name')
+                        break
+            product_attribute = self.env["product.attribute"].get_attribute(attribute_name,
+                                                                            type="radio",
+                                                                            create_variant="always",
+                                                                            auto_create=True)
+            if product_attribute:
+                product_attribute_value = self.env[
+                    "product.attribute.value"].get_attribute_values(attribute_val,
+                                                                    product_attribute.id,
+                                                                    auto_create=True)
+                if product_attribute_value:
+                    template_attribute_value_id = self.env[
+                        'product.template.attribute.value'].search(
+                        [('product_attribute_value_id', '=', product_attribute_value.id),
+                         ('attribute_id', '=', product_attribute.id),
+                         ('product_tmpl_id', '=', product_template.id)], limit=1)
+                    if template_attribute_value_id:
+                        domain = ('product_template_attribute_value_ids', '=',
+                                  template_attribute_value_id.id)
+                        template_attribute_value_domain.append(domain)
+                    else:
+                        return []
 
-            elif woo_instance.woo_attribute_type == 'select':
-                woo_product_attribute = self.env['woo.product.attribute.ept'].search(
-                    [('name', '=ilike', attribute_name), ('woo_instance_id', '=', woo_instance.id)],
-                    limit=1)
-                if woo_product_attribute:
-                    woo_product_attribute_term = self.env['woo.product.attribute.term.ept'].search(
-                        [('woo_attribute_id', '=', woo_product_attribute.woo_attribute_id),
-                         ('name', '=ilike', attribute_val),
-                         ('woo_instance_id', '=', woo_instance.id)], limit=1)
-                    if not woo_product_attribute_term:
-                        woo_product_attribute_term = self.env[
-                            'woo.product.attribute.term.ept'].search(
-                            [('woo_attribute_id', '=', woo_product_attribute.woo_attribute_id),
-                             ('slug', '=ilike', attribute_val),
-                             ('woo_instance_id', '=', woo_instance.id)], limit=1)
-                    if woo_product_attribute_term:
-                        template_attribute_value_id = self.env[
-                            'product.template.attribute.value'].search(
-                            [('product_attribute_value_id', '=',
-                              woo_product_attribute_term.attribute_value_id.id),
-                             ('attribute_id', '=', woo_product_attribute.attribute_id.id),
-                             ('product_tmpl_id', '=', product_template.id)], limit=1)
-                        if template_attribute_value_id:
-                            domain = ('product_template_attribute_value_ids', '=',
-                                      template_attribute_value_id.id)
-                            template_attribute_value_domain.append(domain)
-                        else:
-                            return []
         return template_attribute_value_domain
 
     def woo_set_variant_sku(self, woo_instance, product_template_dict,
@@ -2519,9 +2490,6 @@ class WooProductTemplateEpt(models.Model):
                                 attribute = self.env["product.attribute"].get_attribute(
                                     attribute["name"])
                                 woo_attribute_ids.append(attribute.id)
-                            woo_attributes = self.env["woo.product.attribute.ept"].search(
-                                [("id", "in", woo_attribute_ids)])
-                            woo_attribute_ids = woo_attributes.ids
                             woo_attribute_ids.sort()
                             odoo_attributes.sort()
                             if odoo_attributes != woo_attribute_ids:
@@ -3368,7 +3336,7 @@ class WooProductTemplateEpt(models.Model):
             batch_update_data = []
 
             for template in templates:
-                data = {'id': template.woo_tmpl_id, 'variations': []}
+                data = {'id': template.woo_tmpl_id, 'variations': [], "type":template.woo_product_type}
                 if not publish:
                     data.update(
                         {'status': 'publish' if template.website_published else 'draft'})
@@ -3406,6 +3374,11 @@ class WooProductTemplateEpt(models.Model):
                                                                     common_log_id,
                                                                     False)
                     continue
+                else:
+                    if publish == 'publish':
+                        templates.write({'website_published': True})
+                    elif publish == 'unpublish':
+                        templates.write({'website_published': False})
                 try:
                     response = res.json()
                 except Exception as e:
@@ -3421,11 +3394,12 @@ class WooProductTemplateEpt(models.Model):
                                                                     common_log_id,
                                                                     False)
                     continue
-                if res.status_code in [200, 201]:
-                    if publish == 'publish':
-                        templates.write({'website_published': True})
-                    elif publish == 'unpublish':
-                        templates.write({'website_published': False})
+                for product in response.get("update"):
+                    if product.get("error"):
+                        message = "Update Product \n%s" % (product.get("error").get('message'))
+                        common_log_line_obj.woo_product_export_log_line(message, model_id,
+                                                                        common_log_id,
+                                                                        False)
         return True
 
     def auto_update_stock(self, ctx):
@@ -3724,8 +3698,10 @@ class WooProductTemplateEpt(models.Model):
     def prepare_product_variant_dict(self, instance, template, data, basic_detail, update_price,
                                      update_image, common_log_id, model_id):
         """
-        This method is used for prepare the product variant dict based on parameters
-        :param instance: It contain the browsable object of the current instanc
+        This method is used for prepare the product variant dict based on parameters.
+        Maulik : Updates variant in this method. Creates new variant, if not exported in woo.
+                 Also updating the attributes in template for the new variant.
+        :param instance: It contain the browsable object of the current instance.
         :param template: It contain the woo product template
         :param data: It contain the basic detail of woo product template and Its type is Dict
         :param basic_detail: It contain Either True or False and its type is Boolean
@@ -3738,26 +3714,34 @@ class WooProductTemplateEpt(models.Model):
         """
         common_log_line_obj = self.env['common.log.lines.ept']
         wcapi = instance.woo_connect()
+        variants_to_create = []
         flag = True
         for variant in template.woo_product_ids:
             var_url = ''
             price = 0.0
-            if not variant.variant_id:
-                continue
-            info = {'id': variant.variant_id}
-            if basic_detail:
-                info.update({'sku': variant.default_code, 'weight': str(variant.product_id.weight),
-                             "manage_stock":variant.woo_is_manage_stock})
-            if update_image:
-                info.update(self.get_variant_image(instance, variant))
+            if variant.variant_id:
+                info = {'id': variant.variant_id}
+                if basic_detail:
+                    info.update({'sku': variant.default_code, 'weight': str(variant.product_id.weight),
+                                 "manage_stock":variant.woo_is_manage_stock})
+                if update_image:
+                    info.update(self.get_variant_image(instance, variant))
+            else:
+                attributes = self.get_product_attribute(template.product_tmpl_id, instance, common_log_id,
+                                                        model_id)[0]
+                info = self.get_variant_data(variant, instance, False)
+
             if update_price:
-                if variant.variant_id:
-                    price = instance.woo_pricelist_id.get_product_price(variant.product_id, 1.0,
-                                                                        partner=False,
-                                                                        uom_id=variant.product_id.uom_id.id)
-                    info.update({'regular_price': str(price), 'sale_price': str(price)})
+                price = instance.woo_pricelist_id.get_product_price(variant.product_id, 1.0,
+                                                                    partner=False,
+                                                                    uom_id=variant.product_id.uom_id.id)
+                info.update({'regular_price': str(price), 'sale_price': str(price)})
+
             if template.woo_tmpl_id != variant.variant_id:
-                data.get('variations').append(info)
+                if variant.variant_id:
+                    data.get('variations').append(info)
+                else:
+                    variants_to_create.append(info)
                 flag = True
             elif template.woo_tmpl_id == variant.variant_id:
                 del data['variations']
@@ -3792,7 +3776,40 @@ class WooProductTemplateEpt(models.Model):
                     common_log_line_obj.woo_product_export_log_line(message, model_id,
                                                                     common_log_id,
                                                                     False)
+        if variants_to_create:
+            """Needed to update the attributes of template for adding new variant, while update
+            process."""
+            _logger.info("Updating attributes of %s in Woo.." % (template.name))
+            if data.get("variations"):
+                del data['variations']
+            data.update({"attributes": attributes})
+            res = wcapi.put("products/%s" % (data.get("id")), data)
 
+            _logger.info("Creating variants in Woo..")
+            res = wcapi.post('products/%s/variations/batch' % (data.get('id')),
+                             {'create': variants_to_create})
+            try:
+                response = res.json()
+            except Exception as e:
+                message = "Json Error : While update products to WooCommerce for instance %s." \
+                          " \n%s" % (instance.name, e)
+                common_log_line_obj.woo_product_export_log_line(message, model_id,
+                                                                common_log_id,
+                                                                False)
+                return data, flag
+            for product in response.get("create"):
+                if product.get("error"):
+                    message = "Update Product \n%s" % (product.get("error").get('message'))
+                    common_log_line_obj.woo_product_export_log_line(message, model_id,
+                                                                    common_log_id,
+                                                                    False)
+                else:
+                    variant_id = product.get("id")
+                    sku = product.get("sku")
+                    variant = template.woo_product_ids.filtered(lambda x:x.default_code == sku)
+                    if variant:
+                        variant.write({"variant_id":variant_id, "exported_in_woo":True})
+            self.sync_woo_attribute_term(instance, common_log_id)
         return data, flag
 
     def get_product_update_data(self, wcapi, template, instance, update_image,
@@ -4039,7 +4056,7 @@ class WooProductTemplateEpt(models.Model):
                 created_at = response.get('date_created').replace('T', ' ')
                 updated_at = response.get('date_modified').replace('T', ' ')
 
-                if template.product_variant_count == 1:
+                if template.product_variant_count == 1 and not template.attribute_line_ids:
                     woo_product = woo_template.woo_product_ids
                     woo_product.write({
                         'variant_id': woo_tmpl_id,

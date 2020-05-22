@@ -35,15 +35,10 @@ class WooProcessImportExport(models.TransientModel):
         ('export_coupon', 'Export Coupons')
     ], string="Operation")
     woo_skip_existing_product = fields.Boolean(string="Do not update existing products",
-                                               help="Check of you want to skip existing products in"
+                                               help="Check if you want to skip existing products in"
                                                     " odoo", default=False)
     orders_before_date = fields.Datetime("To")
     orders_after_date = fields.Datetime("From")
-    # csv_data = fields.Binary('CSV File', readonly=True, attachment=False)
-    # filename = fields.Char(string='Filename', size=256, readonly=True)
-    # choose_file = fields.Binary(string='Choose File', filters='*.csv',
-    #                             help="select file to upload")
-    # file_name = fields.Char(string='File name', size=256, readonly=True)
     woo_is_set_price = fields.Boolean(string="Woo Set Price ?")
     woo_is_set_stock = fields.Boolean(string="Woo Set Stock ?")
     woo_publish = fields.Selection([('publish', 'Publish'), ('unpublish', 'Unpublish')],
@@ -54,6 +49,10 @@ class WooProcessImportExport(models.TransientModel):
     woo_is_set_image = fields.Boolean(string="Woo Set Image ?")
     woo_basic_detail = fields.Boolean(string="Basic Detail", default=True)
     export_stock_from = fields.Datetime(help="It is used for exporting stock from Odoo to Woo.")
+    import_products_method = fields.Selection([("import_all", "Import all"),
+                                               ("new_and_updated", "New and Updated Only")],
+                                              "Products to Import",
+                                              default="new_and_updated")
 
     @api.constrains('orders_after_date', 'orders_before_date')
     def _check_order_after_before_date(self):
@@ -388,7 +387,10 @@ class WooProcessImportExport(models.TransientModel):
         """
         woo_products_template_obj = self.env['woo.product.template.ept']
         woo_common_log_obj = self.env["common.log.book.ept"]
+
         woo_instance_id = self.woo_instance_id
+        import_all = True if self.import_products_method == "import_all" else False
+
         woo_common_log_id = woo_common_log_obj.create(
             {
                 'type': 'import',
@@ -403,8 +405,8 @@ class WooProcessImportExport(models.TransientModel):
             woo_products = woo_products_template_obj.get_products_from_woo_v3(woo_instance_id,
                                                                               woo_common_log_id)
         else:
-            woo_products = woo_products_template_obj.get_products_from_woo_v1_v2_v3(woo_instance_id,
-                                                                                    woo_common_log_id)
+            woo_products = woo_products_template_obj.get_products_from_woo_v1_v2_v3(
+                woo_instance_id, woo_common_log_id, import_all=import_all)
         if woo_products:
             self.woo_import_products(woo_products)
         if not woo_common_log_id.log_lines:
@@ -593,7 +595,7 @@ class WooProcessImportExport(models.TransientModel):
                     continue
             common_log_id = common_log_book_obj.create(
                 {
-                    'type': 'import',
+                    'type': 'export',
                     'module': 'woocommerce_ept',
                     'woo_instance_id': instance.id,
                     'active': True,

@@ -115,7 +115,7 @@ class ResConfigSettings(models.TransientModel):
     woo_payment_term_id = fields.Many2one('account.payment.term',
                                           string='Woo Instance Payment Term',
                                           help="Select the condition of payment for invoice.")
-    woo_auto_import_product = fields.Boolean(string="Automatically Create New Product If Not Found?")
+    woo_auto_import_product = fields.Boolean(string="Automatically Create Odoo Product If Not Found?")
     woo_sync_price_with_product = fields.Boolean("Woo Sync/Import Product Price?",
                                                  help="Check if you want to import price along with"
                                                       " products", default=False)
@@ -171,6 +171,9 @@ class ResConfigSettings(models.TransientModel):
     create_woo_coupon_webhook = fields.Boolean("Manage Coupons via Webhooks",
                                                help="True : It will create all coupon related webhooks.\nFalse : All "
                                                     "coupon related webhooks will be deactivated.")
+    woo_attribute_type = fields.Selection([("select", "Select"), ("text", "Text")],
+                                          string="Attribute Type For Export Operation",
+                                          default="select")
 
     @api.model
     def create(self, vals):
@@ -214,6 +217,8 @@ class ResConfigSettings(models.TransientModel):
             self.create_woo_order_webhook = instance.create_woo_order_webhook
             self.create_woo_coupon_webhook = instance.create_woo_coupon_webhook
 
+            self.woo_attribute_type = instance.woo_attribute_type
+
     @api.onchange('woo_company_id')
     def onchange_woo_company_id(self):
         """
@@ -246,19 +251,18 @@ class ResConfigSettings(models.TransientModel):
             values["apply_tax"] = self.woo_apply_tax
             values["invoice_tax_account_id"] = self.woo_invoice_tax_account_id
             values["credit_note_tax_account_id"] = self.woo_credit_note_tax_account_id
-            values[
-                'activity_type_id'] = self.woo_activity_type_id and \
+            values["activity_type_id"] = self.woo_activity_type_id and \
                                       self.woo_activity_type_id.id or False
-            values[
-                'date_deadline'] = self.woo_date_deadline or False
-            values.update({'user_ids': [
-                (6, 0, self.woo_user_ids.ids)]})
+            values["date_deadline"] = self.woo_date_deadline or False
+            values.update({'user_ids': [(6, 0, self.woo_user_ids.ids)]})
             values['is_create_schedule_activity'] = self.woo_is_create_schedule_activity
 
             values["create_woo_product_webhook"] = self.create_woo_product_webhook
             values["create_woo_customer_webhook"] = self.create_woo_customer_webhook
             values["create_woo_order_webhook"] = self.create_woo_order_webhook
             values["create_woo_coupon_webhook"] = self.create_woo_coupon_webhook
+
+            values["woo_attribute_type"] = self.woo_attribute_type
 
             product_webhook_changed = customer_webhook_changed = order_webhook_changed = coupon_webhook_changed = False
             if instance.create_woo_product_webhook != self.create_woo_product_webhook:

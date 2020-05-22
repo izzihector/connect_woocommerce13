@@ -1,5 +1,6 @@
 from odoo import models, fields, api
 
+
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
@@ -11,6 +12,23 @@ class ProductProduct(models.Model):
 
     woo_product_count = fields.Integer(string='# Sales Count', compute='_woo_product_count')
     image_url = fields.Char(size=600, string='Image URL')
+
+    def write(self, vals):
+        """
+        This method use to archive/active woo product base on odoo product.
+        @author: Maulik Barad on Date 21-May-2020.
+        """
+        if 'active' in vals.keys():
+            woo_product_product_obj = self.env['woo.product.product.ept']
+            for product in self:
+                woo_product = woo_product_product_obj.search(
+                        [('product_id', '=', product.id)])
+                if vals.get('active'):
+                    woo_product = woo_product_product_obj.with_context(active_test=False).search(
+                        [('product_id', '=', product.id), ('active', '=', False)])
+                woo_product and woo_product.write({'active':vals.get('active')})
+        return super(ProductProduct, self).write(vals)
+
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
@@ -30,7 +48,7 @@ class ProductTemplate(models.Model):
                         [('product_tmpl_id', '=', template.id)])
                 if vals.get('active'):
                     woo_templates = woo_product_template_obj.search(
-                            [('product_tmpl_id', '=', template.id),('active','=',False)])
+                            [('product_tmpl_id', '=', template.id), ('active', '=', False)])
                 woo_templates and woo_templates.write({'active':vals.get('active')})
         res = super(ProductTemplate, self).write(vals)
         return res

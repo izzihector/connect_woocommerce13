@@ -398,7 +398,11 @@
                         <page string='Sync Option'>
                             <group name='woo_sync_products'
                                    attrs="{'invisible':[('woo_operation','!=','import_product')]}">
-                                <field name="woo_skip_existing_product"/>
+                                <group>
+                                    <field name="import_products_method"
+                                           attrs="{'required':[('woo_operation','=','import_product')]}"/>
+                                    <field name="woo_skip_existing_product"/>
+                                </group>
                             </group>
                             <group name="woo_import_orders"
                                    attrs="{'invisible':[('woo_operation','!=','import_orders')]}">
